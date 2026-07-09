@@ -22,7 +22,7 @@ interface KBDetail {
   description: string
   doc_count: number
   chunk_count: number
-  docs: Array<{ doc_id: string; filename: string; chunk_count: number; uploaded_at: string }>
+  docs?: Array<{ doc_id: string; filename: string; chunk_count: number; uploaded_at: string }>
   created_at: string
 }
 
@@ -369,11 +369,11 @@ export default function KnowledgePage() {
                 )}
 
                 {/* KB Documents */}
-                {kbDetail && (kbDetail as any).docs && (kbDetail as any).docs.length > 0 && (
+                {kbDetail && kbDetail.docs && kbDetail.docs.length > 0 && (
                   <div className="space-y-3">
                     <h3 className="text-sm font-semibold text-gray-700">文档列表</h3>
                     <div className="space-y-2">
-                      {kbDetail.docs.map((doc) => (
+                      {kbDetail.docs!.map((doc) => (
                         <div key={doc.doc_id} className="flex items-center gap-3 rounded-lg border border-gray-200 bg-white px-4 py-3">
                           <File className="h-4 w-4 text-gray-400 shrink-0" />
                           <div className="flex-1 min-w-0">

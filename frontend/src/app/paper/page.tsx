@@ -154,7 +154,7 @@ export default function PaperPage() {
     setError('')
     try {
       const data = await generateSocratic(kbId)
-      setSocraticQuestions(data.questions || [])
+      setSocraticQuestions((data.questions || []) as SocraticQuestion[])
       setCurrentQuestionIdx(0)
       setEvaluations({})
       setSocraticResponse('')
@@ -193,7 +193,7 @@ export default function PaperPage() {
     setError('')
     try {
       const data = await recommendLiterature(kbId, 5)
-      setRecommendations(data.recommendations || [])
+      setRecommendations((data.recommendations || []) as LiteratureRec[])
     } catch (err) {
       setError(err instanceof Error ? err.message : '获取推荐失败')
     } finally {
