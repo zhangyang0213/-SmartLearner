@@ -141,8 +141,8 @@ export default function KnowledgePage() {
     try {
       if (useNLQuery) {
         const data = await nlQuery(selectedKbId, searchQuery)
-        setSearchResults(data.results)
-        setInterpretedQuery(data.interpreted_query)
+        setSearchResults(data.results || [])
+        setInterpretedQuery(data.refined_query || '')
       } else {
         const data = await searchKB(selectedKbId, searchQuery, searchType)
         setSearchResults(data.results)
@@ -369,7 +369,7 @@ export default function KnowledgePage() {
                 )}
 
                 {/* KB Documents */}
-                {kbDetail && kbDetail.docs.length > 0 && (
+                {kbDetail && (kbDetail as any).docs && (kbDetail as any).docs.length > 0 && (
                   <div className="space-y-3">
                     <h3 className="text-sm font-semibold text-gray-700">文档列表</h3>
                     <div className="space-y-2">

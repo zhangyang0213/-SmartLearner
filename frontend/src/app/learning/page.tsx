@@ -70,7 +70,29 @@ export default function LearningPage() {
       const data = await createPlan(goal, currentLevel, timeframe)
       setPlanId(data.plan_id)
       setShowCreateForm(false)
-      await loadProgress(data.plan_id)
+      // 将后端返回的计划转换为前端显示格式
+      const milestones = (data.milestones || []).map((m: any, idx: number) => ({
+        id: m.id || `m${idx + 1}`,
+        title: m.title,
+        description: m.description,
+        order: idx,
+        status: 'not_started',
+        tasks: (m.resources || m.learning_objectives || []).map((r: any, tIdx: number) => ({
+          id: `${m.id || `m${idx + 1}`}_t${tIdx + 1}`,
+          title: r.title || r,
+          description: r.description || '',
+          estimated_hours: 2,
+          status: 'not_started',
+        })),
+      }))
+      setPlan({
+        plan_id: data.plan_id,
+        goal: data.goal || goal,
+        completion_percentage: 0,
+        streak: 0,
+        total_study_hours: 0,
+        milestones,
+      })
     } catch (err) {
       setError(err instanceof Error ? err.message : '创建计划失败')
     } finally {
