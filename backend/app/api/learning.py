@@ -81,6 +81,52 @@ async def create_learning_plan(request: CreatePlanRequest):
             timeframe=request.timeframe,
             preferences=request.preferences,
         )
+        # 初始化 tracker 中的计划数据，存储 goal 和 milestones 以便 get_progress 能返回
+        plan_id = result.get("plan_id", "")
+        if plan_id:
+            store = tracker._load_store()
+            tracker._ensure_plan_structure(store, plan_id)
+            store["plans"][plan_id]["goal"] = request.goal
+            # 存储前端需要的完整里程碑数据
+            milestones_data = {}
+            for idx, m in enumerate(result.get("milestones", [])):
+                m_id = m.get("id", f"m{idx + 1}")
+                tasks_data = {}
+                # 从 resources 或 learning_objectives 构建 tasks
+                resources = m.get("resources", [])
+                learning_objectives = m.get("learning_objectives", [])
+                items = resources if resources else learning_objectives
+                if not items:
+                    items = [{"title": m.get("title", f"任务{idx+1}"), "description": m.get("description", "")}]
+                for t_idx, r in enumerate(items):
+                    t_id = f"{m_id}_t{t_idx + 1}"
+                    t_title = r.get("title", r) if isinstance(r, dict) else str(r)
+                    t_desc = r.get("description", "") if isinstance(r, dict) else ""
+                    t_hours = 2  # 默认2小时
+                    tasks_data[t_id] = {
+                        "task_id": t_id,
+                        "title": t_title,
+                        "description": t_desc,
+                        "estimated_hours": t_hours,
+                        "status": "not_started",
+                        "notes": "",
+                        "started_at": None,
+                        "completed_at": None,
+                        "updated_at": None,
+                    }
+                milestones_data[m_id] = {
+                    "milestone_id": m_id,
+                    "title": m.get("title", ""),
+                    "description": m.get("description", ""),
+                    "order": idx,
+                    "estimated_duration": m.get("estimated_duration", ""),
+                    "status": "not_started",
+                    "started_at": None,
+                    "completed_at": None,
+                    "tasks": tasks_data,
+                }
+            store["plans"][plan_id]["milestones"] = milestones_data
+            tracker._save_store(store)
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"学习计划创建失败: {str(e)}")

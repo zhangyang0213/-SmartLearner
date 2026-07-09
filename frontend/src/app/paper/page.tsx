@@ -22,6 +22,7 @@ interface SummaryData {
   findings_summary: string
   limitations: string[]
   future_work: string
+  overall_assessment: string
 }
 
 interface SocraticQuestion {
@@ -88,9 +89,11 @@ export default function PaperPage() {
     setError('')
     try {
       await uploadFiles(selectedKb, [file])
-      const title = file.name.replace(/\.(docx|doc|pdf|txt)$/i, '').replace(/_/g, ' ')
+      const title = file.name.replace(/\.(docx|doc|pdf|txt|md)$/i, '').replace(/_/g, ' ')
       setPaperKbId(selectedKb)
       setPaperTitle(title)
+      // 上传成功后自动加载摘要
+      loadSummary(selectedKb)
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
       setError(msg || '上传失败')
@@ -115,14 +118,28 @@ export default function PaperPage() {
     setError('')
     try {
       const data = await summarize(kbId)
+      // 后端 limitations 可能是字符串或数组，统一转为数组
+      let limitations: string[] = []
+      if (Array.isArray(data.limitations)) {
+        limitations = data.limitations
+      } else if (typeof data.limitations === 'string' && data.limitations.trim()) {
+        limitations = [data.limitations]
+      }
+      let keyContributions: string[] = []
+      if (Array.isArray(data.key_contributions)) {
+        keyContributions = data.key_contributions
+      } else if (typeof data.key_contributions === 'string') {
+        keyContributions = [data.key_contributions]
+      }
       setSummary({
         title_guess: data.title_guess || '',
         abstract_summary: data.abstract_summary || '',
-        key_contributions: data.key_contributions || [],
+        key_contributions: keyContributions,
         methodology_summary: data.methodology_summary || '',
         findings_summary: data.findings_summary || '',
-        limitations: data.limitations || [],
+        limitations,
         future_work: data.future_work || '',
+        overall_assessment: data.overall_assessment || '',
       })
     } catch (err) {
       setError(err instanceof Error ? err.message : '获取摘要失败')
@@ -245,14 +262,14 @@ export default function PaperPage() {
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept=".doc,.docx,.pdf,.txt"
+                  accept=".doc,.docx,.pdf,.txt,.md"
                   onChange={(e) => { const f = e.target.files?.[0]; if (f) handleUploadFile(f) }}
                   className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                   disabled={!selectedKb}
                 />
                 <Upload className="h-8 w-8 text-purple-400 mx-auto mb-2" />
                 <p className="text-sm text-gray-600">拖拽或点击选择论文文件</p>
-                <p className="text-xs text-gray-400 mt-1">支持 .docx .doc .pdf .txt</p>
+                <p className="text-xs text-gray-400 mt-1">支持 .docx .doc .pdf .txt .md</p>
               </div>
 
               {uploading && (
@@ -360,6 +377,12 @@ export default function PaperPage() {
                             </ul>
                           )}
                           {summary.future_work && <p className="text-sm text-gray-700">{summary.future_work}</p>}
+                        </section>
+                      )}
+                      {summary.overall_assessment && (
+                        <section className="rounded-xl border border-purple-200 bg-purple-50/50 p-6">
+                          <h3 className="text-sm font-semibold text-purple-700 uppercase tracking-wider mb-3">总体评价</h3>
+                          <p className="text-sm text-gray-700 leading-relaxed">{summary.overall_assessment}</p>
                         </section>
                       )}
                     </div>

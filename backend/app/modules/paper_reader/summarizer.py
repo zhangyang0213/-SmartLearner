@@ -112,13 +112,21 @@ class PaperSummarizer:
             "key_contributions": [],
             "methodology_summary": "",
             "findings_summary": "",
-            "limitations": "",
+            "limitations": [],
             "future_work": "",
             "overall_assessment": "",
         }
         for key in default_result:
             if key not in result:
                 result[key] = default_result[key]
+
+        # 确保 limitations 和 key_contributions 是列表
+        if isinstance(result.get("limitations"), str):
+            text = result["limitations"].strip()
+            result["limitations"] = [text] if text else []
+        if isinstance(result.get("key_contributions"), str):
+            text = result["key_contributions"].strip()
+            result["key_contributions"] = [text] if text else []
 
         return result
 

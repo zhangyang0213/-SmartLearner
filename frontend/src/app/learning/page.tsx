@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Sidebar from '@/components/Sidebar'
 import { Route, Plus, Loader2, X, Clock, CheckCircle, Circle, Play, ChevronDown, ChevronUp, Target, Flame, BookOpen, Star, Timer } from 'lucide-react'
 import clsx from 'clsx'
@@ -62,6 +62,24 @@ export default function LearningPage() {
   const [sessionNotes, setSessionNotes] = useState('')
   const [recordingSession, setRecordingSession] = useState(false)
 
+  // 页面加载时从 localStorage 恢复 planId
+  useEffect(() => {
+    const savedPlanId = localStorage.getItem('smartlearner_plan_id')
+    if (savedPlanId) {
+      setPlanId(savedPlanId)
+      loadProgress(savedPlanId)
+    }
+  }, [])
+
+  // planId 变化时保存到 localStorage
+  useEffect(() => {
+    if (planId) {
+      localStorage.setItem('smartlearner_plan_id', planId)
+    } else {
+      localStorage.removeItem('smartlearner_plan_id')
+    }
+  }, [planId])
+
   async function handleCreatePlan() {
     if (!goal.trim() || !currentLevel.trim() || !timeframe.trim()) return
     setCreating(true)
@@ -105,18 +123,94 @@ export default function LearningPage() {
     setError('')
     try {
       const data = await getProgress(pid)
-      setPlan({
-        plan_id: data.plan_id,
-        goal: data.goal,
-        completion_percentage: data.completion_percentage,
-        streak: data.streak,
-        total_study_hours: data.total_study_hours,
-        milestones: data.milestones,
+      // 后端返回 streak_days，前端使用 streak
+      const streak = data.streak_days ?? data.streak ?? 0
+      const totalStudyHours = data.total_study_hours ?? 0
+      setPlan((prev) => {
+        // 后端 get_progress 返回精简的里程碑数据，仅用于更新进度数字
+        // 保留前端原有的丰富里程碑结构（title, description, tasks with title等）
+        const backendMilestones = data.milestones || []
+        const prevMilestones = prev?.milestones || []
+
+        // 如果后端有里程碑数据且前端也有，用后端的status更新前端
+        let updatedMilestones = prevMilestones
+        if (backendMilestones.length > 0 && prevMilestones.length > 0) {
+          updatedMilestones = prevMilestones.map((m, idx) => {
+            const bm = backendMilestones[idx]
+            if (!bm) return m
+            return {
+              ...m,
+              status: bm.status || m.status,
+              tasks: m.tasks.map((t, tIdx) => {
+                const bt = bm.tasks?.[tIdx]
+                if (!bt) return t
+                return { ...t, status: bt.status || t.status }
+              }),
+            }
+          })
+        } else if (backendMilestones.length > 0 && prevMilestones.length === 0) {
+          // 如果前端没有里程碑（比如刷新页面后），用后端数据构建
+          updatedMilestones = backendMilestones.map((bm: any) => ({
+            id: bm.id || bm.milestone_id,
+            title: bm.title || bm.id || '',
+            description: bm.description || '',
+            order: bm.order ?? 0,
+            status: bm.status || 'not_started',
+            tasks: (bm.tasks || []).map((bt: any) => ({
+              id: bt.task_id || bt.id,
+              title: bt.title || bt.task_id || '',
+              description: bt.description || bt.notes || '',
+              estimated_hours: bt.estimated_hours || 2,
+              status: bt.status || 'not_started',
+            })),
+          }))
+        }
+
+        return {
+          plan_id: data.plan_id,
+          goal: data.goal || prev?.goal || '',
+          completion_percentage: data.completion_percentage ?? prev?.completion_percentage ?? 0,
+          streak,
+          total_study_hours: totalStudyHours,
+          milestones: updatedMilestones,
+        }
       })
       // Load recommendations
       try {
         const recs = await getRecommendations(pid)
-        setRecommendations(recs.recommendations)
+        // 后端返回 {next_milestone, suggested_focus, weak_areas, motivational_message}
+        // 转换为前端格式 [{title, description, priority}]
+        const recList: Recommendation[] = []
+        if (recs.suggested_focus) {
+          recList.push({
+            type: 'suggestion',
+            title: '下一步学习重点',
+            description: recs.suggested_focus,
+            priority: 'high',
+            action: '',
+          })
+        }
+        if (recs.motivational_message) {
+          recList.push({
+            type: 'motivation',
+            title: '学习鼓励',
+            description: recs.motivational_message,
+            priority: 'medium',
+            action: '',
+          })
+        }
+        if (recs.weak_areas && recs.weak_areas.length > 0) {
+          recs.weak_areas.forEach((wa: any) => {
+            recList.push({
+              type: 'weakness',
+              title: `薄弱领域：${wa.milestone_id || ''}`,
+              description: wa.reason || '',
+              priority: 'medium',
+              action: '',
+            })
+          })
+        }
+        setRecommendations(recList)
       } catch {
         setRecommendations([])
       }
@@ -185,6 +279,8 @@ export default function LearningPage() {
       setSessionTask(null)
       setSessionDuration('')
       setSessionNotes('')
+      // 重新加载进度以更新右侧面板的连续天数和学习小时
+      await loadProgress(planId)
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
       setError(msg || '记录学习时间失败')
@@ -315,7 +411,16 @@ export default function LearningPage() {
               <div className="flex-1 min-w-0">
                 {/* Goal */}
                 <div className="mb-6">
-                  <h2 className="text-lg font-semibold text-gray-900">{plan.goal}</h2>
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-lg font-semibold text-gray-900">{plan.goal}</h2>
+                    <button
+                      onClick={() => { setSessionTask({ title: '' }); setShowSessionModal(true) }}
+                      className="btn-secondary gap-1.5 text-xs"
+                    >
+                      <Timer className="h-3.5 w-3.5" />
+                      记录学习
+                    </button>
+                  </div>
                   <div className="mt-2 flex items-center gap-3">
                     <div className="flex-1 h-2 rounded-full bg-gray-200">
                       <div

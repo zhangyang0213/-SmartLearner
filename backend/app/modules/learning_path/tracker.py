@@ -228,6 +228,9 @@ class LearningProgressTracker:
             for t_id, t_data in tasks.items():
                 task_list.append({
                     "task_id": t_id,
+                    "title": t_data.get("title", t_id),
+                    "description": t_data.get("description", ""),
+                    "estimated_hours": t_data.get("estimated_hours", 2),
                     "status": t_data.get("status", "not_started"),
                     "notes": t_data.get("notes", ""),
                     "updated_at": t_data.get("updated_at")
@@ -235,6 +238,10 @@ class LearningProgressTracker:
 
             milestones_progress.append({
                 "id": m_id,
+                "title": m_data.get("title", m_id),
+                "description": m_data.get("description", ""),
+                "order": m_data.get("order", 0),
+                "estimated_duration": m_data.get("estimated_duration", ""),
                 "status": m_data.get("status", "not_started"),
                 "completion": m_completion,
                 "total_tasks": m_total,
@@ -255,6 +262,7 @@ class LearningProgressTracker:
 
         return {
             "plan_id": plan_id,
+            "goal": plan_data.get("goal", ""),
             "completion_percentage": completion_percentage,
             "milestones": milestones_progress,
             "streak_days": streak_days,
