@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>SmartLearner 系统流程图</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif; background: #f8fafc; padding: 40px; }
+  h1 { text-align: center; color: #1e293b; font-size: 24px; margin-bottom: 30px; }
+  h2 { text-align: center; color: #475569; font-size: 18px; margin-bottom: 20px; font-weight: normal; }
+
+  /* 流程图 */
+  .flow { display: flex; flex-direction: column; align-items: center; gap: 12px; margin: 20px auto; max-width: 900px; }
+  .flow-row { display: flex; align-items: center; gap: 16px; justify-content: center; flex-wrap: wrap; }
+  .flow-box { border-radius: 12px; padding: 14px 24px; text-align: center; font-size: 14px; font-weight: 600; color: #fff; min-width: 140px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+  .flow-box.user { background: #6366f1; }
+  .flow-box.frontend { background: #3b82f6; }
+  .flow-box.proxy { background: #8b5cf6; font-size: 12px; padding: 8px 16px; }
+  .flow-box.backend { background: #10b981; }
+  .flow-box.module { background: #f59e0b; color: #1e293b; font-size: 13px; min-width: 120px; }
+  .flow-box.engine { background: #ef4444; font-size: 13px; }
+  .flow-box.infra { background: #64748b; font-size: 13px; }
+  .flow-arrow { color: #94a3b8; font-size: 24px; line-height: 1; }
+  .flow-arrow-down { text-align: center; color: #94a3b8; font-size: 24px; }
+  .flow-label { font-size: 11px; color: #64748b; text-align: center; }
+
+  /* 架构图 */
+  .arch { margin: 40px auto; max-width: 960px; }
+  .arch-title { text-align: center; font-size: 18px; color: #1e293b; margin-bottom: 20px; font-weight: 700; }
+  .arch-layer { border-radius: 16px; padding: 20px; margin-bottom: 12px; }
+  .arch-layer-title { font-size: 15px; font-weight: 700; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+  .arch-layer-app { background: #eff6ff; border: 2px solid #3b82f6; }
+  .arch-layer-app .arch-layer-title { color: #1d4ed8; }
+  .arch-layer-mid { background: #f0fdf4; border: 2px solid #10b981; }
+  .arch-layer-mid .arch-layer-title { color: #047857; }
+  .arch-layer-base { background: #fef2f2; border: 2px solid #ef4444; }
+  .arch-layer-base .arch-layer-title { color: #b91c1c; }
+  .arch-items { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+  .arch-item { background: #fff; border-radius: 10px; padding: 12px 18px; font-size: 13px; font-weight: 600; box-shadow: 0 1px 4px rgba(0,0,0,0.08); text-align: center; min-width: 130px; }
+  .arch-item .label { color: #475569; font-size: 11px; font-weight: 400; margin-top: 4px; }
+  .arch-item.blue { border-left: 4px solid #3b82f6; }
+  .arch-item.green { border-left: 4px solid #10b981; }
+  .arch-item.red { border-left: 4px solid #ef4444; }
+  .arch-item.yellow { border-left: 4px solid #f59e0b; }
+
+  .connector { text-align: center; color: #94a3b8; font-size: 20px; margin: 4px 0; }
+
+  /* 模块流程 */
+  .module-flow { margin: 40px auto; max-width: 900px; }
+  .module-flow-title { text-align: center; font-size: 18px; color: #1e293b; margin-bottom: 20px; font-weight: 700; }
+  .module-flow-row { display: flex; align-items: stretch; gap: 16px; margin-bottom: 16px; }
+  .module-card { flex: 1; border-radius: 12px; padding: 16px; font-size: 13px; }
+  .module-card h3 { font-size: 14px; margin-bottom: 8px; }
+  .module-card ul { list-style: none; font-size: 12px; color: #475569; }
+  .module-card ul li::before { content: "→ "; }
+  .module-card.course { background: #eff6ff; border: 1px solid #93c5fd; }
+  .module-card.course h3 { color: #1d4ed8; }
+  .module-card.paper { background: #faf5ff; border: 1px solid #c4b5fd; }
+  .module-card.paper h3 { color: #7c3aed; }
+  .module-card.kb { background: #f0fdf4; border: 1px solid #86efac; }
+  .module-card.kb h3 { color: #15803d; }
+  .module-card.learning { background: #fff7ed; border: 1px solid #fdba74; }
+  .module-card.learning h3 { color: #c2410c; }
+</style>
+</head>
+<body>
+
+<!-- 图1：系统总体流程图 -->
+<h1>图1 SmartLearner 系统总体流程图</h1>
+
+<div class="flow">
+  <div class="flow-row">
+    <div class="flow-box user">用户</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-box frontend">前端界面<br><span style="font-size:11px;font-weight:400">Next.js 14 + TailwindCSS</span></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-box proxy">API 代理</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-box backend">后端服务<br><span style="font-size:11px;font-weight:400">FastAPI + LangChain</span></div>
+  </div>
+
+  <div class="flow-arrow-down">↓</div>
+
+  <div class="flow-row">
+    <div class="flow-box module">课程问答助手</div>
+    <div class="flow-box module">论文精读教练</div>
+    <div class="flow-box module">知识库管家</div>
+    <div class="flow-box module">学习路径规划</div>
+  </div>
+
+  <div class="flow-arrow-down">↓</div>
+
+  <div class="flow-row">
+    <div class="flow-box engine">RAG 引擎<br><span style="font-size:11px;font-weight:400">检索+生成</span></div>
+    <div class="flow-box engine">文档解析器<br><span style="font-size:11px;font-weight:400">PDF/DOCX/PPTX</span></div>
+    <div class="flow-box engine">混合搜索引擎<br><span style="font-size:11px;font-weight:400">语义+关键词</span></div>
+  </div>
+
+  <div class="flow-arrow-down">↓</div>
+
+  <div class="flow-row">
+    <div class="flow-box infra">DashScope API<br><span style="font-size:11px;font-weight:400">qwen-plus / qwen-turbo</span></div>
+    <div class="flow-box infra">FAISS 向量库<br><span style="font-size:11px;font-weight:400">text-embedding-v2</span></div>
+    <div class="flow-box infra">JSON 数据存储<br><span style="font-size:11px;font-weight:400">知识库/进度元数据</span></div>
+  </div>
+</div>
+
+<div style="height:60px"></div>
+
+<!-- 图2：系统架构详细图 -->
+<div class="arch">
+  <div class="arch-title">图2 SmartLearner 系统三层架构图</div>
+
+  <!-- 应用层 -->
+  <div class="arch-layer arch-layer-app">
+    <div class="arch-layer-title">📱 应用层</div>
+    <div class="arch-items">
+      <div class="arch-item blue">
+        📊 仪表盘首页
+        <div class="label">模块导航 + 快捷入口</div>
+      </div>
+      <div class="arch-item blue">
+        📚 课程问答助手
+        <div class="label">对话问答 + Bloom测验</div>
+      </div>
+      <div class="arch-item blue">
+        📄 论文精读教练
+        <div class="label">摘要 + 苏格拉底 + 推荐</div>
+      </div>
+      <div class="arch-item blue">
+        🗂 知识库管家
+        <div class="label">CRUD + 上传 + 检索</div>
+      </div>
+      <div class="arch-item blue">
+        🗺 学习路径规划
+        <div class="label">计划 + 追踪 + 记录</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="connector">↕ RESTful API (CORS)</div>
+
+  <!-- 中间层 -->
+  <div class="arch-layer arch-layer-mid">
+    <div class="arch-layer-title">⚙️ 中间层</div>
+    <div class="arch-items">
+      <div class="arch-item green">
+        FastAPI 后端
+        <div class="label">5个路由模块 + 上传</div>
+      </div>
+      <div class="arch-item green">
+        LangChain 框架
+        <div class="label">Model I/O + Retrieval</div>
+      </div>
+      <div class="arch-item green">
+        RAG Pipeline
+        <div class="label">解析→分块→嵌入→检索→生成</div>
+      </div>
+      <div class="arch-item green">
+        混合搜索引擎
+        <div class="label">语义0.7 + 关键词0.3</div>
+      </div>
+      <div class="arch-item green">
+        LLMClient 封装
+        <div class="label">chat() + chat_json()</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="connector">↕ API / SDK</div>
+
+  <!-- 基础层 -->
+  <div class="arch-layer arch-layer-base">
+    <div class="arch-layer-title">🔧 基础层</div>
+    <div class="arch-items">
+      <div class="arch-item red">
+        DashScope qwen-plus
+        <div class="label">主模型 (4096 tokens)</div>
+      </div>
+      <div class="arch-item red">
+        DashScope qwen-turbo
+        <div class="label">快速模型 (2048 tokens)</div>
+      </div>
+      <div class="arch-item red">
+        text-embedding-v2
+        <div class="label">1536维 嵌入模型</div>
+      </div>
+      <div class="arch-item red">
+        FAISS 向量数据库
+        <div class="label">本地索引 + 增量更新</div>
+      </div>
+      <div class="arch-item red">
+        JSON 文件存储
+        <div class="label">知识库/进度元数据</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div style="height:60px"></div>
+
+<!-- 模块功能流 -->
+<div class="module-flow">
+  <div class="module-flow-title">图3 四大模块功能流程</div>
+
+  <div class="module-flow-row">
+    <div class="module-card course">
+      <h3>📚 课程问答助手</h3>
+      <ul>
+        <li>上传课件 (PPTX/PDF/DOCX)</li>
+        <li>智能对话问答 (RAG检索+生成)</li>
+        <li>多轮对话 (上下文记忆)</li>
+        <li>测验生成 (Bloom 6层级)</li>
+        <li>测验评估 (逐题反馈)</li>
+      </ul>
+    </div>
+    <div class="module-card paper">
+      <h3>📄 论文精读教练</h3>
+      <ul>
+        <li>上传论文 (DOCX/PDF/TXT)</li>
+        <li>8维度结构化摘要</li>
+        <li>苏格拉底式递进提问</li>
+        <li>理解程度评估 (3层级)</li>
+        <li>相关文献推荐</li>
+      </ul>
+    </div>
+  </div>
+  <div class="module-flow-row">
+    <div class="module-card kb">
+      <h3>🗂 知识库管家</h3>
+      <ul>
+        <li>创建/删除知识库</li>
+        <li>多格式文档上传与解析</li>
+        <li>语义检索 (向量相似度)</li>
+        <li>关键词检索 (TF-IDF)</li>
+        <li>混合检索 (语义+关键词)</li>
+        <li>自然语言查询</li>
+      </ul>
+    </div>
+    <div class="module-card learning">
+      <h3>🗺 学习路径规划</h3>
+      <ul>
+        <li>AI生成个性化学习计划</li>
+        <li>里程碑式任务分解</li>
+        <li>任务状态追踪</li>
+        <li>学习时长记录</li>
+        <li>连续天数统计</li>
+        <li>个性化学习建议</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
