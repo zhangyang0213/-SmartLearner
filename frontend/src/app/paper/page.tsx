@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import Sidebar from '@/components/Sidebar'
 import { FileText, Upload, Loader2, X, Lightbulb, BookOpen, Network, Star, CheckCircle, ArrowRight } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
@@ -79,10 +79,10 @@ export default function PaperPage() {
 
   // Drag state
   const [dragOver, setDragOver] = useState(false)
-  const fileInputRef = React.useRef<HTMLInputElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Load knowledge bases on mount
-  React.useEffect(() => {
+  useEffect(() => {
     loadKBs()
   }, [])
 

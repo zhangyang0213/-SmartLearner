@@ -170,15 +170,17 @@ export default function LearningPage() {
 
   async function handleRecordSession() {
     if (!planId || !sessionDuration) return
-    const duration = parseFloat(sessionDuration)
-    if (isNaN(duration) || duration <= 0) {
+    const hours = parseFloat(sessionDuration)
+    if (isNaN(hours) || hours <= 0) {
       setError('请输入有效的学习时长')
       return
     }
     setRecordingSession(true)
     setError('')
     try {
-      await recordSession(planId, duration, sessionTask?.title || '', sessionNotes || '')
+      // 将小时转为整数分钟
+      const minutes = Math.round(hours * 60)
+      await recordSession(planId, minutes, sessionTask?.title || '', sessionNotes || '')
       setShowSessionModal(false)
       setSessionTask(null)
       setSessionDuration('')
@@ -516,12 +518,12 @@ export default function LearningPage() {
             </div>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">学习时长（小时）</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">学习时长（小时，如0.5=30分钟）</label>
                 <input
                   type="number"
                   value={sessionDuration}
                   onChange={(e) => setSessionDuration(e.target.value)}
-                  placeholder="例如：1.5"
+                  placeholder="例如：1 或 0.5"
                   step="0.5"
                   min="0.5"
                   className="input-field"
