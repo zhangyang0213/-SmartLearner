@@ -9,8 +9,15 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
     ...options,
   })
   if (!res.ok) {
-    const error = await res.json().catch(() => ({ detail: res.statusText }))
-    throw new Error(error.detail || error.message || '请求失败')
+    let errMsg = `请求失败 (${res.status})`
+    try {
+      const error = await res.json()
+      if (typeof error.detail === 'string') errMsg = error.detail
+      else if (typeof error.message === 'string') errMsg = error.message
+      else if (typeof error.detail === 'object') errMsg = JSON.stringify(error.detail)
+      else errMsg = JSON.stringify(error)
+    } catch {}
+    throw new Error(errMsg)
   }
   return res.json()
 }
@@ -25,8 +32,14 @@ export async function uploadFiles(kbId: string, files: File[]) {
     body: formData,
   })
   if (!res.ok) {
-    const error = await res.json().catch(() => ({ detail: res.statusText }))
-    throw new Error(error.detail || '上传失败')
+    let errMsg = `上传失败 (${res.status})`
+    try {
+      const error = await res.json()
+      if (typeof error.detail === 'string') errMsg = error.detail
+      else if (typeof error.message === 'string') errMsg = error.message
+      else errMsg = JSON.stringify(error)
+    } catch {}
+    throw new Error(errMsg)
   }
   return res.json()
 }

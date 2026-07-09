@@ -169,18 +169,23 @@ export default function LearningPage() {
   }
 
   async function handleRecordSession() {
-    if (!planId || !sessionTask || !sessionDuration) return
+    if (!planId || !sessionDuration) return
+    const duration = parseFloat(sessionDuration)
+    if (isNaN(duration) || duration <= 0) {
+      setError('请输入有效的学习时长')
+      return
+    }
     setRecordingSession(true)
     setError('')
     try {
-      await recordSession(planId, parseFloat(sessionDuration), sessionTask.title || '', sessionNotes || undefined)
+      await recordSession(planId, duration, sessionTask?.title || '', sessionNotes || '')
       setShowSessionModal(false)
       setSessionTask(null)
       setSessionDuration('')
       setSessionNotes('')
-      await loadProgress(planId)
     } catch (err) {
-      setError(err instanceof Error ? err.message : '记录学习时间失败')
+      const msg = err instanceof Error ? err.message : String(err)
+      setError(msg || '记录学习时间失败')
     } finally {
       setRecordingSession(false)
     }

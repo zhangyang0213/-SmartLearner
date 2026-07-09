@@ -55,14 +55,21 @@ class RAGEngine:
         """
         all_chunks: List[Document] = []
         doc_count = 0
+        failed_files = []
 
         for file_path in file_paths:
             try:
                 logger.info(f"开始处理文档: {file_path}")
-                # 解析文档
                 documents = parse_document(file_path)
-                # 分块
+                if not documents:
+                    logger.warning(f"文档 {file_path} 解析结果为空，可能内容无法提取")
+                    failed_files.append({"file": file_path, "reason": "文档内容为空或无法提取文字"})
+                    continue
                 chunks = chunk_documents(documents)
+                if not chunks:
+                    logger.warning(f"文档 {file_path} 分块结果为空")
+                    failed_files.append({"file": file_path, "reason": "文档分块为空"})
+                    continue
                 all_chunks.extend(chunks)
                 doc_count += 1
                 logger.info(
@@ -71,7 +78,7 @@ class RAGEngine:
                 )
             except Exception as e:
                 logger.error(f"处理文档 {file_path} 失败: {e}")
-                # 继续处理其他文件，不中断整个流程
+                failed_files.append({"file": file_path, "reason": str(e)})
                 continue
 
         if all_chunks:
@@ -88,6 +95,7 @@ class RAGEngine:
         return {
             "doc_count": doc_count,
             "chunk_count": len(all_chunks),
+            "failed_files": failed_files,
         }
 
     def query(

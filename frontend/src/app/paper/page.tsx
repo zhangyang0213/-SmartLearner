@@ -105,9 +105,10 @@ export default function PaperPage() {
     try {
       await uploadFiles(selectedKb, [file])
       setPaperKbId(selectedKb)
-      setPaperTitle(file.name.replace(/\.(docx|doc|pdf)$/i, '').replace(/_/g, ' '))
+      setPaperTitle(file.name.replace(/\.(docx|doc|pdf|txt)$/i, '').replace(/_/g, ' '))
     } catch (err) {
-      setError(err instanceof Error ? err.message : '上传论文失败')
+      const msg = err instanceof Error ? err.message : String(err)
+      setError(msg || '上传论文失败')
     } finally {
       setUploading(false)
     }

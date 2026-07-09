@@ -173,10 +173,13 @@ def _parse_text(file_path: str) -> List[Document]:
 _PARSERS = {
     ".pdf": _parse_pdf,
     ".docx": _parse_docx,
+    ".doc": _parse_docx,  # .doc 也尝试用 python-docx 解析
     ".pptx": _parse_pptx,
+    ".ppt": _parse_pptx,  # .ppt 也尝试用 python-pptx 解析
     ".txt": _parse_text,
     ".md": _parse_text,
     ".markdown": _parse_text,
+    ".csv": _parse_text,  # CSV 作为文本解析
 }
 
 
