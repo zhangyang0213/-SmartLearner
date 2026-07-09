@@ -57,7 +57,7 @@ export default function LearningPage() {
 
   // Session recording
   const [showSessionModal, setShowSessionModal] = useState(false)
-  const [sessionTask, setSessionTask] = useState<{ milestoneId: string; taskId: string } | null>(null)
+  const [sessionTask, setSessionTask] = useState<{ title: string } | null>(null)
   const [sessionDuration, setSessionDuration] = useState('')
   const [sessionNotes, setSessionNotes] = useState('')
   const [recordingSession, setRecordingSession] = useState(false)
@@ -173,7 +173,7 @@ export default function LearningPage() {
     setRecordingSession(true)
     setError('')
     try {
-      await recordSession(planId, sessionTask.milestoneId, sessionTask.taskId, parseFloat(sessionDuration), sessionNotes || undefined)
+      await recordSession(planId, parseFloat(sessionDuration), sessionTask.title || '', sessionNotes || undefined)
       setShowSessionModal(false)
       setSessionTask(null)
       setSessionDuration('')
@@ -408,7 +408,7 @@ export default function LearningPage() {
                                       {task.status !== 'completed' && (
                                         <button
                                           onClick={() => {
-                                            setSessionTask({ milestoneId: milestone.id, taskId: task.id })
+                                            setSessionTask({ title: task.title })
                                             setShowSessionModal(true)
                                           }}
                                           className="inline-flex items-center gap-1 text-xs text-orange-600 hover:text-orange-700"

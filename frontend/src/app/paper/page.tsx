@@ -5,46 +5,61 @@ import Sidebar from '@/components/Sidebar'
 import { FileText, Upload, Loader2, X, Lightbulb, BookOpen, Network, Star, CheckCircle, ArrowRight } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import clsx from 'clsx'
-import { uploadPaper, summarize, generateSocratic, evaluateSocratic, recommendLiterature } from '@/lib/api'
+import { uploadFiles, listKBs, summarize, generateSocratic, evaluateSocratic, recommendLiterature } from '@/lib/api'
 
 type Tab = 'summary' | 'socratic' | 'recommend'
 
+interface KBItem {
+  kb_id: string
+  name: string
+  description: string
+  doc_count: number
+  chunk_count: number
+}
+
 interface SummaryData {
-  title: string
+  title_guess: string
+  abstract_summary: string
   key_contributions: string[]
-  methodology: string
-  findings: string[]
+  methodology_summary: string
+  findings_summary: string
   limitations: string[]
+  future_work: string
 }
 
 interface SocraticQuestion {
-  id: string
+  id?: string
   question: string
+  purpose: string
   hint: string
-  key_points: string[]
+  depth_level: number
 }
 
 interface SocraticEval {
-  score: number
+  understanding_level: string
   feedback: string
-  key_points_covered: string[]
-  suggestions: string[]
+  follow_up_question: string
+  key_points_missed: string[]
 }
 
 interface LiteratureRec {
   title: string
-  authors: string
-  year: number
-  relevance: number
-  reason: string
+  authors_guess: string
+  relevance_reason: string
+  search_query: string
+  topics_shared: string[]
 }
 
 export default function PaperPage() {
-  const [paperId, setPaperId] = useState<string>('')
+  const [paperKbId, setPaperKbId] = useState<string>('')
   const [paperTitle, setPaperTitle] = useState<string>('')
   const [uploading, setUploading] = useState(false)
   const [activeTab, setActiveTab] = useState<Tab>('summary')
   const [error, setError] = useState<string>('')
+
+  // Knowledge base for paper
+  const [kbs, setKbs] = useState<KBItem[]>([])
+  const [selectedKb, setSelectedKb] = useState<string>('')
 
   // Summary state
   const [summary, setSummary] = useState<SummaryData | null>(null)
@@ -56,58 +71,78 @@ export default function PaperPage() {
   const [socraticResponse, setSocraticResponse] = useState('')
   const [socraticLoading, setSocraticLoading] = useState(false)
   const [evalLoading, setEvalLoading] = useState(false)
-  const [evaluations, setEvaluations] = useState<Record<string, SocraticEval>>({})
+  const [evaluations, setEvaluations] = useState<Record<number, SocraticEval>>({})
 
   // Literature state
   const [recommendations, setRecommendations] = useState<LiteratureRec[]>([])
   const [litLoading, setLitLoading] = useState(false)
-  const [literatureMap, setLiteratureMap] = useState<{ nodes: Array<{ id: string; label: string; group: string }>; edges: Array<{ source: string; target: string; weight: number }> } | null>(null)
 
   // Drag state
   const [dragOver, setDragOver] = useState(false)
+  const fileInputRef = React.useRef<HTMLInputElement>(null)
 
-  const handleUpload = useCallback(async (file: File) => {
+  // Load knowledge bases on mount
+  React.useEffect(() => {
+    loadKBs()
+  }, [])
+
+  async function loadKBs() {
+    try {
+      const data = await listKBs()
+      setKbs(data.knowledge_bases || [])
+    } catch {
+      setKbs([])
+    }
+  }
+
+  async function handleUploadFile(file: File) {
+    if (!selectedKb) {
+      setError('请先选择或创建一个知识库')
+      return
+    }
     setUploading(true)
     setError('')
     try {
-      const data = await uploadPaper(file)
-      setPaperId(data.paper_id)
-      setPaperTitle(data.title || file.name)
+      await uploadFiles(selectedKb, [file])
+      setPaperKbId(selectedKb)
+      setPaperTitle(file.name.replace(/\.(docx|doc|pdf)$/i, '').replace(/_/g, ' '))
     } catch (err) {
       setError(err instanceof Error ? err.message : '上传论文失败')
     } finally {
       setUploading(false)
     }
-  }, [])
+  }
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault()
     setDragOver(false)
     const file = e.dataTransfer.files[0]
-    if (file && (file.type === 'application/pdf' || file.name.endsWith('.pdf'))) {
-      handleUpload(file)
+    if (file && (file.name.endsWith('.docx') || file.name.endsWith('.doc') || file.name.endsWith('.pdf') || file.name.endsWith('.txt'))) {
+      handleUploadFile(file)
     } else {
-      setError('请上传PDF格式的论文文件')
+      setError('请上传 Word (.doc/.docx) 或 PDF 格式的论文文件')
     }
-  }, [handleUpload])
+  }, [selectedKb])
 
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
-    if (file) handleUpload(file)
-  }, [handleUpload])
+    if (file) handleUploadFile(file)
+  }, [selectedKb])
 
   async function handleLoadSummary() {
-    if (!paperId) return
+    if (!paperKbId) return
     setSummaryLoading(true)
     setError('')
     try {
-      const data = await summarize(paperId)
+      const data = await summarize(paperKbId)
       setSummary({
-        title: data.title,
-        key_contributions: data.key_contributions,
-        methodology: data.methodology,
-        findings: data.findings,
-        limitations: data.limitations,
+        title_guess: data.title_guess || '',
+        abstract_summary: data.abstract_summary || '',
+        key_contributions: data.key_contributions || [],
+        methodology_summary: data.methodology_summary || '',
+        findings_summary: data.findings_summary || '',
+        limitations: data.limitations || [],
+        future_work: data.future_work || '',
       })
     } catch (err) {
       setError(err instanceof Error ? err.message : '获取摘要失败')
@@ -117,12 +152,12 @@ export default function PaperPage() {
   }
 
   async function handleLoadSocratic() {
-    if (!paperId) return
+    if (!paperKbId) return
     setSocraticLoading(true)
     setError('')
     try {
-      const data = await generateSocratic(paperId)
-      setSocraticQuestions(data.questions)
+      const data = await generateSocratic(paperKbId)
+      setSocraticQuestions(data.questions || [])
       setCurrentQuestionIdx(0)
       setEvaluations({})
       setSocraticResponse('')
@@ -134,18 +169,19 @@ export default function PaperPage() {
   }
 
   async function handleEvaluateResponse() {
-    if (!paperId || !socraticQuestions[currentQuestionIdx] || !socraticResponse.trim()) return
+    if (!paperKbId || !socraticQuestions[currentQuestionIdx] || !socraticResponse.trim()) return
     setEvalLoading(true)
     setError('')
     try {
-      const data = await evaluateSocratic(paperId, socraticQuestions[currentQuestionIdx].id, socraticResponse)
+      const q = socraticQuestions[currentQuestionIdx]
+      const data = await evaluateSocratic(paperKbId, q.question, socraticResponse)
       setEvaluations((prev) => ({
         ...prev,
-        [socraticQuestions[currentQuestionIdx].id]: {
-          score: data.score,
-          feedback: data.feedback,
-          key_points_covered: data.key_points_covered,
-          suggestions: data.suggestions,
+        [currentQuestionIdx]: {
+          understanding_level: data.understanding_level || '',
+          feedback: data.feedback || '',
+          follow_up_question: data.follow_up_question || '',
+          key_points_missed: data.key_points_missed || [],
         },
       }))
     } catch (err) {
@@ -156,13 +192,12 @@ export default function PaperPage() {
   }
 
   async function handleLoadRecommendations() {
-    if (!paperId) return
+    if (!paperKbId) return
     setLitLoading(true)
     setError('')
     try {
-      const data = await recommendLiterature(paperId)
-      setRecommendations(data.recommendations)
-      setLiteratureMap(data.literature_map)
+      const data = await recommendLiterature(paperKbId, 5)
+      setRecommendations(data.recommendations || [])
     } catch (err) {
       setError(err instanceof Error ? err.message : '获取推荐失败')
     } finally {
@@ -172,19 +207,18 @@ export default function PaperPage() {
 
   const handleTabChange = (tab: Tab) => {
     setActiveTab(tab)
-    if (tab === 'summary' && !summary && paperId) handleLoadSummary()
-    if (tab === 'socratic' && socraticQuestions.length === 0 && paperId) handleLoadSocratic()
-    if (tab === 'recommend' && recommendations.length === 0 && paperId) handleLoadRecommendations()
+    if (tab === 'summary' && !summary && paperKbId) handleLoadSummary()
+    if (tab === 'socratic' && socraticQuestions.length === 0 && paperKbId) handleLoadSocratic()
+    if (tab === 'recommend' && recommendations.length === 0 && paperKbId) handleLoadRecommendations()
   }
 
   const currentQ = socraticQuestions[currentQuestionIdx]
-  const currentEval = currentQ ? evaluations[currentQ.id] : null
+  const currentEval = currentQ ? evaluations[currentQuestionIdx] : null
 
   return (
     <div className="min-h-screen bg-gray-50">
       <Sidebar />
       <div className="lg:pl-60">
-        {/* Header */}
         <header className="sticky top-0 z-20 border-b border-gray-200 bg-white/80 backdrop-blur-sm">
           <div className="flex h-16 items-center gap-4 px-4 sm:px-6 lg:px-8 pl-16 lg:pl-8">
             <FileText className="h-5 w-5 text-purple-600" />
@@ -197,35 +231,59 @@ export default function PaperPage() {
 
         <div className="p-4 sm:p-6 lg:p-8">
           {/* Upload Section */}
-          {!paperId && (
-            <div className="mb-6">
+          {!paperKbId && (
+            <div className="mb-6 space-y-3">
+              {/* Knowledge base selector */}
+              <div className="max-w-md">
+                <label className="block text-xs font-medium text-gray-600 mb-1">选择目标知识库（用于存储论文）</label>
+                <select
+                  value={selectedKb}
+                  onChange={(e) => setSelectedKb(e.target.value)}
+                  className="input-field"
+                >
+                  <option value="">选择已有知识库，或新建一个</option>
+                  {kbs.map((kb) => (
+                    <option key={kb.kb_id} value={kb.kb_id}>{kb.name}</option>
+                  ))}
+                </select>
+                <p className="text-xs text-gray-400 mt-1">
+                  提示：去"知识库管家"页面创建新知识库，专门用于存放你的论文
+                </p>
+              </div>
+
+              {/* Upload Area */}
               <div
                 onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
                 onDragLeave={() => setDragOver(false)}
                 onDrop={handleDrop}
                 className={clsx(
-                  'relative rounded-2xl border-2 border-dashed p-12 text-center transition-colors',
-                  dragOver ? 'border-purple-400 bg-purple-50' : 'border-gray-300 hover:border-gray-400'
+                  'relative rounded-2xl border-2 border-dashed p-12 text-center transition-colors max-w-lg',
+                  dragOver ? 'border-purple-400 bg-purple-50' : 'border-gray-300 hover:border-gray-400',
+                  !selectedKb && 'opacity-50 cursor-not-allowed'
                 )}
               >
                 <input
+                  ref={fileInputRef}
                   type="file"
-                  accept=".pdf"
+                  accept=".doc,.docx,.pdf,.txt"
                   onChange={handleFileSelect}
                   className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                  disabled={!selectedKb}
                 />
-                <div className="flex flex-col items-center">
-                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-purple-50 mb-4">
-                    <Upload className="h-7 w-7 text-purple-500" />
-                  </div>
+                <div className="flex flex-col items-center pointer-events-none">
+                  <Upload className="h-10 w-10 text-purple-400 mb-3" />
                   <h3 className="text-base font-medium text-gray-900 mb-1">上传论文</h3>
-                  <p className="text-sm text-gray-500">拖拽PDF文件到此处，或点击选择文件</p>
+                  <p className="text-sm text-gray-500">拖拽 Word (.doc/.docx) 或 PDF 文件到此处</p>
+                  <p className="text-xs text-gray-400 mt-1">支持 .docx、.doc、.pdf、.txt 格式</p>
                 </div>
               </div>
+
+              {!selectedKb && (
+                <p className="text-sm text-orange-600 max-w-lg">请先选择一个知识库来存储论文内容</p>
+              )}
             </div>
           )}
 
-          {/* Upload indicator */}
           {uploading && (
             <div className="mb-6 flex items-center justify-center gap-2 py-8">
               <Loader2 className="h-5 w-5 animate-spin text-purple-500" />
@@ -233,7 +291,6 @@ export default function PaperPage() {
             </div>
           )}
 
-          {/* Error */}
           {error && (
             <div className="mb-4 flex items-center gap-2 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
               <span className="flex-1">{error}</span>
@@ -241,10 +298,16 @@ export default function PaperPage() {
             </div>
           )}
 
-          {/* Content - only show after upload */}
-          {paperId && (
+          {paperKbId && (
             <>
-              {/* Tab Navigation */}
+              <div className="mb-4 flex items-center justify-between">
+                <p className="text-sm text-gray-600">当前论文：<strong>{paperTitle}</strong></p>
+                <button onClick={() => { setPaperKbId(''); setPaperTitle(''); setSummary(null); setSocraticQuestions([]); setRecommendations([]); }}
+                        className="text-xs text-gray-500 hover:text-red-600">
+                  上传其他论文
+                </button>
+              </div>
+
               <div className="flex items-center gap-1 border-b border-gray-200 mb-6">
                 {[
                   { id: 'summary' as Tab, label: '摘要', icon: BookOpen },
@@ -281,48 +344,63 @@ export default function PaperPage() {
                   )}
                   {summary && (
                     <div className="space-y-6 max-w-3xl">
-                      <h2 className="text-xl font-bold text-gray-900">{summary.title}</h2>
+                      <h2 className="text-xl font-bold text-gray-900">{summary.title_guess || paperTitle}</h2>
 
-                      <section className="rounded-xl border border-gray-200 bg-white p-6">
-                        <h3 className="text-sm font-semibold text-purple-700 uppercase tracking-wider mb-3">核心贡献</h3>
-                        <ul className="space-y-2">
-                          {summary.key_contributions.map((c, i) => (
-                            <li key={i} className="flex items-start gap-2 text-sm text-gray-700">
-                              <Star className="h-4 w-4 text-purple-400 shrink-0 mt-0.5" />
-                              <span>{c}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </section>
+                      {summary.abstract_summary && (
+                        <section className="rounded-xl border border-gray-200 bg-white p-6">
+                          <h3 className="text-sm font-semibold text-purple-700 uppercase tracking-wider mb-3">概述</h3>
+                          <p className="text-sm text-gray-700 leading-relaxed">{summary.abstract_summary}</p>
+                        </section>
+                      )}
 
-                      <section className="rounded-xl border border-gray-200 bg-white p-6">
-                        <h3 className="text-sm font-semibold text-purple-700 uppercase tracking-wider mb-3">研究方法</h3>
-                        <p className="text-sm text-gray-700 leading-relaxed">{summary.methodology}</p>
-                      </section>
+                      {summary.key_contributions.length > 0 && (
+                        <section className="rounded-xl border border-gray-200 bg-white p-6">
+                          <h3 className="text-sm font-semibold text-purple-700 uppercase tracking-wider mb-3">核心贡献</h3>
+                          <ul className="space-y-2">
+                            {summary.key_contributions.map((c, i) => (
+                              <li key={i} className="flex items-start gap-2 text-sm text-gray-700">
+                                <Star className="h-4 w-4 text-purple-400 shrink-0 mt-0.5" />
+                                <span>{c}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </section>
+                      )}
 
-                      <section className="rounded-xl border border-gray-200 bg-white p-6">
-                        <h3 className="text-sm font-semibold text-purple-700 uppercase tracking-wider mb-3">主要发现</h3>
-                        <ul className="space-y-2">
-                          {summary.findings.map((f, i) => (
-                            <li key={i} className="flex items-start gap-2 text-sm text-gray-700">
-                              <CheckCircle className="h-4 w-4 text-emerald-400 shrink-0 mt-0.5" />
-                              <span>{f}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </section>
+                      {summary.methodology_summary && (
+                        <section className="rounded-xl border border-gray-200 bg-white p-6">
+                          <h3 className="text-sm font-semibold text-purple-700 uppercase tracking-wider mb-3">研究方法</h3>
+                          <p className="text-sm text-gray-700 leading-relaxed">{summary.methodology_summary}</p>
+                        </section>
+                      )}
 
-                      <section className="rounded-xl border border-gray-200 bg-white p-6">
-                        <h3 className="text-sm font-semibold text-purple-700 uppercase tracking-wider mb-3">局限性</h3>
-                        <ul className="space-y-2">
-                          {summary.limitations.map((l, i) => (
-                            <li key={i} className="flex items-start gap-2 text-sm text-gray-700">
-                              <X className="h-4 w-4 text-red-400 shrink-0 mt-0.5" />
-                              <span>{l}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </section>
+                      {summary.findings_summary && (
+                        <section className="rounded-xl border border-gray-200 bg-white p-6">
+                          <h3 className="text-sm font-semibold text-purple-700 uppercase tracking-wider mb-3">主要发现</h3>
+                          <div className="prose prose-sm max-w-none text-sm text-gray-700">
+                            <ReactMarkdown>{summary.findings_summary}</ReactMarkdown>
+                          </div>
+                        </section>
+                      )}
+
+                      {(summary.limitations.length > 0 || summary.future_work) && (
+                        <section className="rounded-xl border border-gray-200 bg-white p-6">
+                          <h3 className="text-sm font-semibold text-purple-700 uppercase tracking-wider mb-3">局限性与未来工作</h3>
+                          {summary.limitations.length > 0 && (
+                            <ul className="space-y-2 mb-3">
+                              {summary.limitations.map((l, i) => (
+                                <li key={i} className="flex items-start gap-2 text-sm text-gray-700">
+                                  <X className="h-4 w-4 text-red-400 shrink-0 mt-0.5" />
+                                  <span>{l}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                          {summary.future_work && (
+                            <p className="text-sm text-gray-700">{summary.future_work}</p>
+                          )}
+                        </section>
+                      )}
                     </div>
                   )}
                 </div>
@@ -339,35 +417,29 @@ export default function PaperPage() {
                   )}
                   {socraticQuestions.length > 0 && currentQ && (
                     <div className="max-w-3xl space-y-6">
-                      {/* Progress */}
                       <div className="flex items-center gap-2">
                         {socraticQuestions.map((_, i) => (
-                          <div
-                            key={i}
-                            className={clsx(
-                              'h-1.5 flex-1 rounded-full transition-colors',
-                              i < currentQuestionIdx ? 'bg-purple-500' :
-                              i === currentQuestionIdx ? 'bg-purple-400' : 'bg-gray-200'
-                            )}
-                          />
+                          <div key={i} className={clsx(
+                            'h-1.5 flex-1 rounded-full transition-colors',
+                            i < currentQuestionIdx ? 'bg-purple-500' :
+                            i === currentQuestionIdx ? 'bg-purple-400' : 'bg-gray-200'
+                          )} />
                         ))}
                         <span className="text-xs text-gray-500 ml-2 shrink-0">
                           {currentQuestionIdx + 1} / {socraticQuestions.length}
                         </span>
                       </div>
 
-                      {/* Question Card */}
                       <div className="rounded-xl border border-purple-200 bg-purple-50/50 p-6">
                         <div className="flex items-start gap-3 mb-3">
                           <Lightbulb className="h-5 w-5 text-purple-500 shrink-0 mt-0.5" />
                           <h3 className="text-base font-medium text-gray-900">{currentQ.question}</h3>
                         </div>
                         <p className="text-sm text-gray-500 ml-8">
-                          <span className="font-medium text-purple-600">提示：</span>{currentQ.hint}
+                          <span className="font-medium text-purple-600">提示：</span>{currentQ.hint || currentQ.purpose}
                         </p>
                       </div>
 
-                      {/* Response Input */}
                       {!currentEval ? (
                         <div className="space-y-3">
                           <textarea
@@ -388,63 +460,39 @@ export default function PaperPage() {
                         </div>
                       ) : (
                         <div className="space-y-4">
-                          {/* Evaluation Result */}
                           <div className={clsx(
                             'rounded-xl border p-5',
-                            currentEval.score >= 70 ? 'border-emerald-200 bg-emerald-50' :
-                            currentEval.score >= 40 ? 'border-yellow-200 bg-yellow-50' : 'border-red-200 bg-red-50'
+                            currentEval.understanding_level === 'insightful' ? 'border-emerald-200 bg-emerald-50' :
+                            currentEval.understanding_level === 'deep' ? 'border-yellow-200 bg-yellow-50' : 'border-red-200 bg-red-50'
                           )}>
                             <div className="flex items-center gap-2 mb-2">
-                              <span className="text-sm font-semibold">评分：</span>
+                              <span className="text-sm font-semibold">理解程度：</span>
                               <span className={clsx(
-                                'text-lg font-bold',
-                                currentEval.score >= 70 ? 'text-emerald-600' :
-                                currentEval.score >= 40 ? 'text-yellow-600' : 'text-red-600'
+                                'text-base font-bold',
+                                currentEval.understanding_level === 'insightful' ? 'text-emerald-600' :
+                                currentEval.understanding_level === 'deep' ? 'text-yellow-600' : 'text-red-600'
                               )}>
-                                {currentEval.score}分
+                                {currentEval.understanding_level === 'insightful' ? '深刻' :
+                                 currentEval.understanding_level === 'deep' ? '较深' : '表面'}
                               </span>
                             </div>
                             <p className="text-sm text-gray-700 mb-3">{currentEval.feedback}</p>
-                            {currentEval.key_points_covered.length > 0 && (
-                              <div className="mb-2">
-                                <p className="text-xs font-medium text-gray-500 mb-1">已覆盖要点：</p>
-                                <div className="flex flex-wrap gap-1.5">
-                                  {currentEval.key_points_covered.map((p, i) => (
-                                    <span key={i} className="inline-flex rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs text-emerald-700">{p}</span>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-                            {currentEval.suggestions.length > 0 && (
-                              <div>
-                                <p className="text-xs font-medium text-gray-500 mb-1">改进建议：</p>
-                                <ul className="space-y-1">
-                                  {currentEval.suggestions.map((s, i) => (
-                                    <li key={i} className="text-xs text-gray-600">• {s}</li>
-                                  ))}
-                                </ul>
-                              </div>
+                            {currentEval.follow_up_question && (
+                              <p className="text-sm text-purple-600 italic">追问：{currentEval.follow_up_question}</p>
                             )}
                           </div>
 
-                          {/* Next button */}
                           {currentQuestionIdx < socraticQuestions.length - 1 ? (
                             <button
-                              onClick={() => {
-                                setCurrentQuestionIdx((prev) => prev + 1)
-                                setSocraticResponse('')
-                              }}
+                              onClick={() => { setCurrentQuestionIdx((prev) => prev + 1); setSocraticResponse('') }}
                               className="btn-primary gap-2"
                             >
-                              <ArrowRight className="h-4 w-4" />
-                              下一题
+                              <ArrowRight className="h-4 w-4" />下一题
                             </button>
                           ) : (
                             <div className="rounded-xl border border-purple-200 bg-purple-50 p-5 text-center">
+                              <CheckCircle className="h-8 w-8 text-purple-500 mx-auto mb-2" />
                               <p className="text-sm font-medium text-purple-700">精读完成！</p>
-                              <p className="text-xs text-purple-600 mt-1">
-                                平均得分：{Math.round(Object.values(evaluations).reduce((s, e) => s + e.score, 0) / Object.values(evaluations).length)}分
-                              </p>
                             </div>
                           )}
                         </div>
@@ -464,84 +512,28 @@ export default function PaperPage() {
                     </div>
                   )}
                   {recommendations.length > 0 && (
-                    <div className="space-y-6 max-w-3xl">
-                      {/* Literature Map Visualization */}
-                      {literatureMap && literatureMap.nodes.length > 0 && (
-                        <section className="rounded-xl border border-gray-200 bg-white p-6">
-                          <h3 className="text-sm font-semibold text-purple-700 uppercase tracking-wider mb-4">文献关系图谱</h3>
-                          <div className="relative w-full h-64 bg-gray-50 rounded-lg overflow-hidden">
-                            <svg viewBox="0 0 600 250" className="w-full h-full">
-                              {literatureMap.nodes.map((node, i) => {
-                                const cols = Math.ceil(Math.sqrt(literatureMap.nodes.length))
-                                const x = 80 + (i % cols) * (440 / cols)
-                                const y = 50 + Math.floor(i / cols) * (180 / Math.ceil(literatureMap.nodes.length / cols))
-                                return (
-                                  <g key={node.id}>
-                                    <circle
-                                      cx={x}
-                                      cy={y}
-                                      r={node.id === paperId ? 14 : 10}
-                                      fill={node.id === paperId ? '#7c3aed' : '#6366f1'}
-                                      opacity={0.8}
-                                    />
-                                    <text
-                                      x={x}
-                                      y={y + 24}
-                                      textAnchor="middle"
-                                      className="text-[8px] fill-gray-600"
-                                    >
-                                      {node.label.length > 12 ? node.label.slice(0, 12) + '...' : node.label}
-                                    </text>
-                                  </g>
-                                )
-                              })}
-                              {literatureMap.edges.map((edge, i) => {
-                                const sourceIdx = literatureMap.nodes.findIndex((n) => n.id === edge.source)
-                                const targetIdx = literatureMap.nodes.findIndex((n) => n.id === edge.target)
-                                if (sourceIdx === -1 || targetIdx === -1) return null
-                                const cols = Math.ceil(Math.sqrt(literatureMap.nodes.length))
-                                const x1 = 80 + (sourceIdx % cols) * (440 / cols)
-                                const y1 = 50 + Math.floor(sourceIdx / cols) * (180 / Math.ceil(literatureMap.nodes.length / cols))
-                                const x2 = 80 + (targetIdx % cols) * (440 / cols)
-                                const y2 = 50 + Math.floor(targetIdx / cols) * (180 / Math.ceil(literatureMap.nodes.length / cols))
-                                return (
-                                  <line
-                                    key={i}
-                                    x1={x1} y1={y1} x2={x2} y2={y2}
-                                    stroke="#c4b5fd"
-                                    strokeWidth={Math.max(1, edge.weight * 2)}
-                                    opacity={0.5}
-                                  />
-                                )
-                              })}
-                            </svg>
-                          </div>
-                        </section>
-                      )}
-
-                      {/* Recommendation Cards */}
-                      <section>
-                        <h3 className="text-sm font-semibold text-purple-700 uppercase tracking-wider mb-4">推荐文献</h3>
-                        <div className="space-y-3">
-                          {recommendations.map((rec, i) => (
-                            <div key={i} className="rounded-xl border border-gray-200 bg-white p-5 card-hover">
-                              <div className="flex items-start justify-between gap-4">
-                                <div className="flex-1 min-w-0">
-                                  <h4 className="text-sm font-medium text-gray-900 mb-1">{rec.title}</h4>
-                                  <p className="text-xs text-gray-500">{rec.authors} · {rec.year}</p>
-                                  <p className="text-sm text-gray-600 mt-2">{rec.reason}</p>
-                                </div>
-                                <div className="shrink-0 text-right">
-                                  <div className="inline-flex items-center gap-1 rounded-full bg-purple-50 px-2.5 py-1 text-xs font-medium text-purple-700">
-                                    <Star className="h-3 w-3" />
-                                    {Math.round(rec.relevance * 100)}%
+                    <div className="space-y-4 max-w-3xl">
+                      <h3 className="text-sm font-semibold text-purple-700 uppercase tracking-wider mb-4">推荐相关文献</h3>
+                      <div className="space-y-3">
+                        {recommendations.map((rec, i) => (
+                          <div key={i} className="rounded-xl border border-gray-200 bg-white p-5 card-hover">
+                            <div className="flex items-start justify-between gap-4">
+                              <div className="flex-1 min-w-0">
+                                <h4 className="text-sm font-medium text-gray-900 mb-1">{rec.title}</h4>
+                                <p className="text-xs text-gray-500">{rec.authors_guess || ''}</p>
+                                <p className="text-sm text-gray-600 mt-2">{rec.relevance_reason}</p>
+                                {rec.topics_shared && rec.topics_shared.length > 0 && (
+                                  <div className="flex flex-wrap gap-1 mt-2">
+                                    {rec.topics_shared.map((t, j) => (
+                                      <span key={j} className="inline-flex rounded-full bg-purple-100 px-2 py-0.5 text-xs text-purple-700">{t}</span>
+                                    ))}
                                   </div>
-                                </div>
+                                )}
                               </div>
                             </div>
-                          ))}
-                        </div>
-                      </section>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   )}
                 </div>

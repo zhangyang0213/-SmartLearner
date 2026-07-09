@@ -15,7 +15,7 @@ from app.core.rag_engine import rag_engine
 router = APIRouter(prefix="/api/upload", tags=["文件上传"])
 
 # 支持的文件扩展名
-ALLOWED_EXTENSIONS = {".pdf", ".docx", ".pptx", ".txt", ".md", ".csv"}
+ALLOWED_EXTENSIONS = {".pdf", ".docx", ".doc", ".pptx", ".ppt", ".txt", ".md", ".csv"}
 
 
 @router.post("/{kb_id}")
