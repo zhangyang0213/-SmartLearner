@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: smartlearner-backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - smartlearner-data:/app/data
+    env_file:
+      - ./backend/.env
+    environment:
+      - DASHSCOPE_API_KEY=${DASHSCOPE_API_KEY}
+      - VECTOR_STORE_PATH=/app/data/vector_store
+      - UPLOAD_DIR=/app/data/uploads
+      - DATABASE_URL=sqlite:///./data/smartlearner.db
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  frontend:
+    image: node:20-alpine
+    container_name: smartlearner-frontend
+    working_dir: /app
+    volumes:
+      - ./frontend:/app
+      - frontend-node-modules:/app/node_modules
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://backend:8000
+    command: sh -c "npm ci && npm run dev"
+    depends_on:
+      - backend
+
+volumes:
+  smartlearner-data:
+  frontend-node-modules:
