@@ -112,7 +112,8 @@ export default function LearningPage() {
         milestones,
       })
     } catch (err) {
-      setError(err instanceof Error ? err.message : '创建计划失败')
+      const msg = err instanceof Error ? err.message : '创建计划失败'
+      setError(`创建计划失败：${msg}。请确认后端已启动且 .env 中已配置 DASHSCOPE_API_KEY`)
     } finally {
       setCreating(false)
     }
@@ -387,7 +388,7 @@ export default function LearningPage() {
                       <button onClick={() => setShowCreateForm(false)} className="btn-secondary">取消</button>
                       <button onClick={handleCreatePlan} disabled={creating || !goal.trim() || !currentLevel.trim() || !timeframe.trim()} className="btn-primary gap-2">
                         {creating && <Loader2 className="h-4 w-4 animate-spin" />}
-                        生成计划
+                        {creating ? 'AI 正在生成计划...' : '生成计划'}
                       </button>
                     </div>
                   </div>

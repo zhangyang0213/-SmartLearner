@@ -1,25 +1,40 @@
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || '/api'
 
-async function request<T>(path: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`${BASE_URL}${path}`, {
-    headers: {
-      'Content-Type': 'application/json',
-      ...options?.headers,
-    },
-    ...options,
-  })
-  if (!res.ok) {
-    let errMsg = `请求失败 (${res.status})`
-    try {
-      const error = await res.json()
-      if (typeof error.detail === 'string') errMsg = error.detail
-      else if (typeof error.message === 'string') errMsg = error.message
-      else if (typeof error.detail === 'object') errMsg = JSON.stringify(error.detail)
-      else errMsg = JSON.stringify(error)
-    } catch {}
-    throw new Error(errMsg)
+// 默认超时 60 秒，LLM 相关请求可能需要较长时间
+async function request<T>(path: string, options?: RequestInit & { timeout?: number }): Promise<T> {
+  const { timeout = 120000, ...fetchOptions } = options || {}
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), timeout)
+
+  try {
+    const res = await fetch(`${BASE_URL}${path}`, {
+      headers: {
+        'Content-Type': 'application/json',
+        ...fetchOptions?.headers,
+      },
+      ...fetchOptions,
+      signal: controller.signal,
+    })
+    if (!res.ok) {
+      let errMsg = `请求失败 (${res.status})`
+      try {
+        const error = await res.json()
+        if (typeof error.detail === 'string') errMsg = error.detail
+        else if (typeof error.message === 'string') errMsg = error.message
+        else if (typeof error.detail === 'object') errMsg = JSON.stringify(error.detail)
+        else errMsg = JSON.stringify(error)
+      } catch {}
+      throw new Error(errMsg)
+    }
+    return res.json()
+  } catch (err) {
+    if (err instanceof DOMException && err.name === 'AbortError') {
+      throw new Error('请求超时，AI 生成内容可能需要较长时间，请稍后重试')
+    }
+    throw err
+  } finally {
+    clearTimeout(timeoutId)
   }
-  return res.json()
 }
 
 // ==================== Course QA ====================
