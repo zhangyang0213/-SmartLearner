@@ -108,6 +108,7 @@ export default function LearningPage() {
     setExpandedMilestone(null)
     setShowPlanList(false)
     await loadProgress(pid)
+    await loadPlanList()
   }
 
   async function handleDeletePlan(pid: string, e: React.MouseEvent) {
@@ -249,6 +250,8 @@ export default function LearningPage() {
       } catch {
         setRecommendations([])
       }
+      // 刷新计划列表
+      await loadPlanList()
     } catch (err) {
       setError(err instanceof Error ? err.message : '加载计划失败')
     } finally {
@@ -464,7 +467,7 @@ export default function LearningPage() {
                       {/* Plan switcher */}
                       <div className="relative">
                         <button
-                          onClick={() => setShowPlanList(!showPlanList)}
+                          onClick={() => { loadPlanList(); setShowPlanList(!showPlanList) }}
                           className="flex items-center gap-1 text-xs text-gray-500 hover:text-orange-600 px-1.5 py-0.5 rounded hover:bg-orange-50 transition-colors"
                           title="切换计划"
                         >
