@@ -195,6 +195,38 @@ class LearningProgressTracker:
         else:
             milestone_data["status"] = "not_started"
 
+    def list_plans(self) -> list:
+        """列出所有学习计划（摘要信息）"""
+        store = self._load_store()
+        plans = []
+        for plan_id, plan_data in store.get("plans", {}).items():
+            milestones = plan_data.get("milestones", {})
+            total_tasks = sum(len(m.get("tasks", {})) for m in milestones.values())
+            completed_tasks = sum(
+                1 for m in milestones.values()
+                for t in m.get("tasks", {}).values()
+                if t.get("status") == "completed"
+            )
+            completion = round(completed_tasks / total_tasks * 100, 1) if total_tasks > 0 else 0.0
+            plans.append({
+                "plan_id": plan_id,
+                "goal": plan_data.get("goal", ""),
+                "completion_percentage": completion,
+                "created_at": plan_data.get("created_at", ""),
+            })
+        # 按创建时间倒序
+        plans.sort(key=lambda p: p.get("created_at", ""), reverse=True)
+        return plans
+
+    def delete_plan(self, plan_id: str) -> bool:
+        """删除指定学习计划"""
+        store = self._load_store()
+        if plan_id in store.get("plans", {}):
+            del store["plans"][plan_id]
+            self._save_store(store)
+            return True
+        return False
+
     def get_progress(self, plan_id: str) -> dict:
         """获取学习计划的整体进度"""
         store = self._load_store()

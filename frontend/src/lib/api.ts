@@ -264,6 +264,18 @@ export async function nlQuery(kbId: string, query: string) {
 
 // ==================== Learning Path ====================
 
+export async function listPlans() {
+  return request<{ plans: Array<{ plan_id: string; goal: string; completion_percentage: number; created_at: string }> }>(
+    `/learning/plans`
+  )
+}
+
+export async function deletePlan(planId: string) {
+  return request<{ success: boolean; message: string }>(`/learning/plan/${planId}`, {
+    method: 'DELETE',
+  })
+}
+
 export async function createPlan(goal: string, currentLevel: string, timeframe: string, preferences?: Record<string, unknown>) {
   return request<Record<string, any>>(
     `/learning/plan`,

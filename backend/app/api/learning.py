@@ -67,6 +67,30 @@ class CrossDomainRequest(BaseModel):
 
 # ===== 路由 =====
 
+@router.get("/plans")
+async def list_plans():
+    """列出所有学习计划"""
+    try:
+        plans = tracker.list_plans()
+        return {"plans": plans}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"获取计划列表失败: {str(e)}")
+
+
+@router.delete("/plan/{plan_id}")
+async def delete_plan(plan_id: str):
+    """删除指定学习计划"""
+    try:
+        success = tracker.delete_plan(plan_id)
+        if not success:
+            raise HTTPException(status_code=404, detail="计划不存在")
+        return {"success": True, "message": "计划已删除"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"删除计划失败: {str(e)}")
+
+
 @router.post("/plan")
 async def create_learning_plan(request: CreatePlanRequest):
     """
