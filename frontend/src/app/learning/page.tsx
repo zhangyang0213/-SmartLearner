@@ -425,8 +425,8 @@ export default function LearningPage() {
                 </div>
               )}
 
-              {/* No existing plans */}
-              {planList.length === 0 && !showCreateForm && (
+              {/* No existing plans placeholder when no plan loaded */}
+              {!showCreateForm && planList.length === 0 && (
                 <div className="flex flex-col items-center justify-center text-center py-16">
                   <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-orange-50 mb-4">
                     <Route className="h-8 w-8 text-orange-500" />
@@ -435,38 +435,10 @@ export default function LearningPage() {
                   <p className="text-sm text-gray-500 max-w-sm mb-6">
                     设定学习目标，AI将为你生成个性化的学习路径和里程碑
                   </p>
-                  <button onClick={() => setShowCreateForm(true)} className="btn-primary gap-2">
+                  <button onClick={() => { setGoal(''); setCurrentLevel(''); setTimeframe(''); setShowCreateForm(true) }} className="btn-primary gap-2">
                     <Plus className="h-4 w-4" />
                     创建新计划
                   </button>
-                </div>
-              )}
-
-              {/* Create form */}
-              {showCreateForm && (
-                <div className="rounded-xl border border-gray-200 bg-white p-6">
-                  <h2 className="text-lg font-semibold text-gray-900 mb-4">创建学习计划</h2>
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">学习目标</label>
-                      <input type="text" value={goal} onChange={(e) => setGoal(e.target.value)} placeholder="例如：掌握机器学习基础" className="input-field" />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">当前水平</label>
-                      <input type="text" value={currentLevel} onChange={(e) => setCurrentLevel(e.target.value)} placeholder="例如：有Python基础，无机器学习经验" className="input-field" />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">时间范围</label>
-                      <input type="text" value={timeframe} onChange={(e) => setTimeframe(e.target.value)} placeholder="例如：3个月" className="input-field" />
-                    </div>
-                    <div className="flex justify-end gap-2 pt-2">
-                      <button onClick={() => setShowCreateForm(false)} className="btn-secondary">取消</button>
-                      <button onClick={handleCreatePlan} disabled={creating || !goal.trim() || !currentLevel.trim() || !timeframe.trim()} className="btn-primary gap-2">
-                        {creating && <Loader2 className="h-4 w-4 animate-spin" />}
-                        {creating ? 'AI 正在生成计划...' : '生成计划'}
-                      </button>
-                    </div>
-                  </div>
                 </div>
               )}
             </div>
@@ -697,6 +669,41 @@ export default function LearningPage() {
           )}
         </div>
       </div>
+
+      {/* Create Plan Modal */}
+      {showCreateForm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
+          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">创建学习计划</h2>
+              <button onClick={() => setShowCreateForm(false)} className="text-gray-400 hover:text-gray-600">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">学习目标</label>
+                <input type="text" value={goal} onChange={(e) => setGoal(e.target.value)} placeholder="例如：掌握机器学习基础" className="input-field" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">当前水平</label>
+                <input type="text" value={currentLevel} onChange={(e) => setCurrentLevel(e.target.value)} placeholder="例如：有Python基础，无机器学习经验" className="input-field" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">时间范围</label>
+                <input type="text" value={timeframe} onChange={(e) => setTimeframe(e.target.value)} placeholder="例如：3个月" className="input-field" />
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <button onClick={() => setShowCreateForm(false)} className="btn-secondary">取消</button>
+                <button onClick={handleCreatePlan} disabled={creating || !goal.trim() || !currentLevel.trim() || !timeframe.trim()} className="btn-primary gap-2">
+                  {creating && <Loader2 className="h-4 w-4 animate-spin" />}
+                  {creating ? 'AI 正在生成计划...' : '生成计划'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Session Recording Modal */}
       {showSessionModal && sessionTask && (
