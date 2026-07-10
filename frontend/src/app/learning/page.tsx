@@ -472,7 +472,7 @@ export default function LearningPage() {
                           title="切换计划"
                         >
                           <Route className="h-3.5 w-3.5" />
-                          <span>{planList.length} 个计划</span>
+                          <span>切换计划</span>
                           <ChevronDown className="h-3 w-3" />
                         </button>
                         {showPlanList && (
